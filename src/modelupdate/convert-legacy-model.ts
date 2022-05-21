@@ -4,9 +4,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const getModelDefinitions = /this.([A-Za-z0-9]+)\s*=\s*new\sModelRenderer\(this,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
-const setRotationPointDefinitions = /this.([A-Za-z0-9]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
+const getRotationPointDefinitions = /this.([A-Za-z0-9]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
 const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
+const getMirrorDefinitions = /this.([A-Za-z0-9]+).mirror\s*=\s*\s*(true|false)\s*;/g;
 const addBoxDefinitions = /this.([A-Za-z0-9]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
+const addChildDefinitions = /this.([A-Za-z0-9]+).addChild\(\s*this.([A-Za-z0-9]+)\s*\);/g;
 const textureWidth = /this.textureWidth\s*=\s*([0-9]+)\s*;/g;
 const textureHeight = /this.textureHeight\s*=\s*([0-9]+)\s*;/g;
 
@@ -91,8 +93,9 @@ class OldModelRenderer {
     public name: string;
     public mirror: boolean = false;
     private rotationPoint: Vector = new Vector(0,0,0);
-    private rotationAngles: Vector = new Vector(0,0,0);
+    private rotationAngle: Vector = new Vector(0,0,0);
     private boxes: OldBox[] = [];
+    private children: OldModelRenderer[] = [];
 
     public texOffset: Pos = {
         x: 0,
@@ -111,6 +114,15 @@ class OldModelRenderer {
     setRotationPoint(x: number, y: number, z: number) {
         this.rotationPoint = new Vector(x, y, z)
     }
+    setRotateAngle(x: number, y: number, z: number) {
+        this.rotationAngle = new Vector(x, y, z)
+    }
+    addChild(child: OldModelRenderer) {
+        this.children.push(child);
+    }
+    addBox(child: OldBox) {
+        this.boxes.push(child);
+    }
 }
 
 /**
@@ -120,9 +132,9 @@ class OldBox {
     public offset: Vector;
     public size: Vector;
 
-    constructor( offX: number, offY: number, offZ: number, width: number, height: number, depth: number ) {
-        this.offset = new Vector(offX, offY, offZ);
-        this.size = new Vector(width, height, depth);
+    constructor( offset: Vector, size: Vector ) {
+        this.offset = offset;
+        this.size = size;
     }
 }
 
@@ -176,6 +188,45 @@ function convertContents(fileContents: string) {
                 name: name,
                 texOffset: new Pos(parseInt(modelDefinition[2]), parseInt(modelDefinition[3]))
             });
+    });
+
+    loopOverAllMatches(getRotationAngleDefinitions, fileContents, (modelDefinition) => {
+        const name = convertToPascalCase(modelDefinition[1]);
+        const angles = modelDefinition.slice(2,5).map((value) => {
+           return parseFloat(value.replace("F",""));
+        });
+        unorganisedParts[name].setRotateAngle(angles[0], angles[1], angles[2]);
+    });
+
+    loopOverAllMatches(addBoxDefinitions, fileContents, (boxDefinition) => {
+        const name = convertToPascalCase(boxDefinition[1]);
+        const offset = boxDefinition.slice(2,5).map((value) => {
+            return parseFloat(value.replace("F",""));
+        });
+        const size = boxDefinition.slice(5,8).map((value) => {
+            return parseInt(value);
+        });
+        unorganisedParts[name].addBox(new OldBox(new Vector(offset[0], offset[1], offset[2]), new Vector(size[0], size[1], size[2])));
+    });
+
+    loopOverAllMatches(getRotationPointDefinitions, fileContents, (modelDefinition) => {
+        const name = convertToPascalCase(modelDefinition[1]);
+        const angles = modelDefinition.slice(2,5).map((value) => {
+            return parseFloat(value.replace("F",""));
+        });
+        unorganisedParts[name].setRotationPoint(angles[0], angles[1], angles[2]);
+    });
+
+    loopOverAllMatches(getMirrorDefinitions, fileContents, (mirrorDefinitions) => {
+        const name = convertToPascalCase(mirrorDefinitions[1]);
+        unorganisedParts[name].mirror = mirrorDefinitions[2] == "true";
+    });
+
+    loopOverAllMatches(addChildDefinitions, fileContents, (childDefinitions) => {
+        const name = convertToPascalCase(childDefinitions[1]);
+        const child = convertToPascalCase(childDefinitions[2]);
+        unorganisedParts[name].addChild(unorganisedParts[child]);
+
     });
 
     // Parse model rotations

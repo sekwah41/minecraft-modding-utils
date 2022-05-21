@@ -4,6 +4,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const getModelDefinitions = /this.([A-Za-z0-9]+)\s*=\s*new\sModelRenderer\(this,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
+const setRotationPointDefinitions = /this.([A-Za-z0-9]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
+const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
+const addBoxDefinitions = /this.([A-Za-z0-9]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
 const textureWidth = /this.textureWidth\s*=\s*([0-9]+)\s*;/g;
 const textureHeight = /this.textureHeight\s*=\s*([0-9]+)\s*;/g;
 
@@ -52,7 +55,7 @@ class Vector {
     }
 }
 
-class Box {
+class CubeDefinition {
     comment: string | undefined;
     origin: Vector = new Vector();
     dimensions: Vector = new Vector();
@@ -60,19 +63,41 @@ class Box {
     texCoord: Pos = new Pos();
 }
 
+/**
+ * Remember there are calls that do both or just offset or rotation.
+ */
+class PartPose {
+    public pos: Vector;
+    public rot: Vector;
+
+    constructor(x: number, y: number, z: number, xRot: number, yRot: number, zRot: number) {
+        this.pos = new Vector(x, y, z)
+        this.rot = new Vector(xRot, yRot, zRot)
+    }
+}
+
+const PoseZeroOffset = new PartPose(0,0,0,0,0,0);
+
+/**
+ * Not a one to one copy of the file in mc, though is used to construct the lines that will create these.
+ */
 class PartDefinition {
+    public cubes: CubeDefinition[] = [];
     public children: PartDefinition[] = [];
+}
+
+// Anything with old in front is data directly from the old files.
+class OldModelRenderer {
     public name: string;
+    public mirror: boolean = false;
+    private rotationPoint: Vector = new Vector(0,0,0);
+    private rotationAngles: Vector = new Vector(0,0,0);
+    private boxes: OldBox[] = [];
 
     public texOffset: Pos = {
         x: 0,
         y: 0,
     };
-
-    /**
-     * For now the converter will do one part for one box, though might look at combining them in the future for optimising.
-     */
-    public box: Box | undefined;
 
     constructor({name, texOffset}: {
         name: string,
@@ -83,6 +108,22 @@ class PartDefinition {
 
     }
 
+    setRotationPoint(x: number, y: number, z: number) {
+        this.rotationPoint = new Vector(x, y, z)
+    }
+}
+
+/**
+ * Might want to add the mirrored or flipped if needed
+ */
+class OldBox {
+    public offset: Vector;
+    public size: Vector;
+
+    constructor( offX: number, offY: number, offZ: number, width: number, height: number, depth: number ) {
+        this.offset = new Vector(offX, offY, offZ);
+        this.size = new Vector(width, height, depth);
+    }
 }
 
 /**
@@ -106,6 +147,16 @@ class NewModelFile {
     }
 }
 
+function loopOverAllMatches(regex: RegExp, contents: string, callback: (match: RegExpExecArray) => void) {
+    let regexMatch;
+    do {
+        regexMatch = regex.exec(contents);
+        if(!regexMatch) {
+            continue;
+        }
+        callback(regexMatch);
+    } while(regexMatch);
+}
 
 /**
  * The main bulk of the logic
@@ -114,23 +165,21 @@ class NewModelFile {
 function convertContents(fileContents: string) {
 
 
-    const unorganisedParts: {[key: string]: PartDefinition} = {
+    const unorganisedParts: {[key: string]: OldModelRenderer} = {
 
     };
 
-    //console.log(fileContents);
-    let modelDefinition;
-    do {
-        modelDefinition = getModelDefinitions.exec(fileContents);
-        if(!modelDefinition) {
-            continue;
-        }
+    // Parse model definitions
+    loopOverAllMatches(getModelDefinitions, fileContents, (modelDefinition) => {
         const name = convertToPascalCase(modelDefinition[1]);
-        unorganisedParts[name] = new PartDefinition({
-            name: name,
-            texOffset: new Pos(parseInt(modelDefinition[2]), parseInt(modelDefinition[3]))
-        });
-    } while(modelDefinition);
+            unorganisedParts[name] = new OldModelRenderer({
+                name: name,
+                texOffset: new Pos(parseInt(modelDefinition[2]), parseInt(modelDefinition[3]))
+            });
+    });
+
+    // Parse model rotations
+
 
     console.log(unorganisedParts);
 }

@@ -27,11 +27,11 @@ const baseModelNames = [
  *
  * These will also create a blank mesh definition.
  */
-const remapNames = {
-    "upper_left_arm": "left_arm",
-    "upper_right_arm": "right_arm",
-    "upper_left_leg": "left_leg",
-    "upper_right_leg": "upper_right_leg"
+const remapNames: {[key: string]: string} = {
+    "left_arm" : "upper_left_arm",
+    "right_arm" : "upper_right_arm",
+    "left_leg" : "upper_left_leg",
+    "upper_right_leg" : "upper_right_leg"
 }
 
 class Pos {
@@ -81,11 +81,15 @@ class PartPose {
 const PoseZeroOffset = new PartPose(0,0,0,0,0,0);
 
 /**
- * Not a one to one copy of the file in mc, though is used to construct the lines that will create these.
+ * Not a one to one copy of the file in mc, though is used to construct the lines that will create the templates
  */
 class PartDefinition {
     public cubes: CubeDefinition[] = [];
-    public children: PartDefinition[] = [];
+    public children: {[key: string]: PartDefinition} = {};
+
+    addOrReplaceChild(name: string, part: PartDefinition) {
+        this.children[name] = part;
+    }
 }
 
 // Anything with old in front is data directly from the old files.
@@ -114,14 +118,26 @@ class OldModelRenderer {
     setRotationPoint(x: number, y: number, z: number) {
         this.rotationPoint = new Vector(x, y, z)
     }
+    getRotationPoint() {
+        this.rotationPoint;
+    }
     setRotateAngle(x: number, y: number, z: number) {
         this.rotationAngle = new Vector(x, y, z)
+    }
+    getRotateAngle() {
+        this.rotationAngle;
     }
     addChild(child: OldModelRenderer) {
         this.children.push(child);
     }
     addBox(child: OldBox) {
         this.boxes.push(child);
+    }
+    getBoxes() {
+        return this.boxes;
+    }
+    getChildren() {
+        return this.children;
     }
 }
 
@@ -170,30 +186,28 @@ function loopOverAllMatches(regex: RegExp, contents: string, callback: (match: R
     } while(regexMatch);
 }
 
-/**
- * The main bulk of the logic
- * @param fileContents the raw java file to pull info from
- */
-function convertContents(fileContents: string) {
+type OldParts = {[key: string]: OldModelRenderer};
+type NewParts = {[key: string]: PartDefinition};
 
+function parseAllOldParts(fileContents: string): OldParts {
 
-    const unorganisedParts: {[key: string]: OldModelRenderer} = {
+    const unorganisedParts: OldParts = {
 
     };
 
     // Parse model definitions
     loopOverAllMatches(getModelDefinitions, fileContents, (modelDefinition) => {
         const name = convertToPascalCase(modelDefinition[1]);
-            unorganisedParts[name] = new OldModelRenderer({
-                name: name,
-                texOffset: new Pos(parseInt(modelDefinition[2]), parseInt(modelDefinition[3]))
-            });
+        unorganisedParts[name] = new OldModelRenderer({
+            name: name,
+            texOffset: new Pos(parseInt(modelDefinition[2]), parseInt(modelDefinition[3]))
+        });
     });
 
     loopOverAllMatches(getRotationAngleDefinitions, fileContents, (modelDefinition) => {
         const name = convertToPascalCase(modelDefinition[1]);
         const angles = modelDefinition.slice(2,5).map((value) => {
-           return parseFloat(value.replace("F",""));
+            return parseFloat(value.replace("F",""));
         });
         unorganisedParts[name].setRotateAngle(angles[0], angles[1], angles[2]);
     });
@@ -229,10 +243,59 @@ function convertContents(fileContents: string) {
 
     });
 
-    // Parse model rotations
+    return unorganisedParts;
+}
 
+/**
+ * The main bulk of the logic
+ * @param fileContents the raw java file to pull info from
+ */
+function convertContents(fileContents: string) {
 
-    console.log(unorganisedParts);
+    const allOldParts = parseAllOldParts(fileContents);
+
+    const baseBipedModel: NewParts = {
+
+    }
+
+    for(const part of baseModelNames) {
+        const newPart = convertOldPart(allOldParts, part);
+        if(newPart) {
+            baseBipedModel[part] = newPart;
+        }
+    }
+
+    //console.log(baseBipedModel);
+
+    // TODO template once converted
+}
+
+function convertModelRenderer(oldPart: OldModelRenderer, rename?: string) {
+    const newPart = new PartDefinition();
+
+    for(const box of oldPart.getBoxes()) {
+        // TODO generate cube definiitons
+    }
+
+    for(const box of oldPart.getChildren()) {
+        // TODO generate child part definitions
+    }
+
+    console.log(oldPart, rename);
+}
+
+function convertOldPart(oldDefinitions: OldParts, name: string) {
+
+    let oldPart = oldDefinitions[name];
+    if(!oldPart) {
+        oldPart = oldDefinitions[remapNames[name]];
+    }
+
+    if(!oldPart) {
+        return null;
+    }
+
+    return convertModelRenderer(oldPart, name);
 }
 
 

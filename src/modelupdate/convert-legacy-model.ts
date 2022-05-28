@@ -57,12 +57,10 @@ class Vector {
     }
 }
 
-class CubeDefinition {
-    comment: string | undefined;
-    origin: Vector = new Vector();
-    dimensions: Vector = new Vector();
-    mirror: boolean = false;
-    texCoord: Pos = new Pos();
+class CubeBuilderDefinition {
+    public mirror: boolean = false;
+    public texCoord: Pos = new Pos();
+    public boxes: Box[] = [];
 }
 
 /**
@@ -83,12 +81,19 @@ const PoseZeroOffset = new PartPose(0,0,0,0,0,0);
 /**
  * Not a one to one copy of the file in mc, though is used to construct the lines that will create the templates
  */
-class PartDefinition {
-    public cubes: CubeDefinition[] = [];
-    public children: {[key: string]: PartDefinition} = {};
+class PartDefinitionBuilder {
+    public name: string | undefined;
+    public cubeBuilder: CubeBuilderDefinition = new CubeBuilderDefinition();
+    public children: {[key: string]: PartDefinitionBuilder} = {};
+    public partPose: PartPose | undefined;
 
-    addOrReplaceChild(name: string, part: PartDefinition) {
+    addOrReplaceChild(name: string, part: PartDefinitionBuilder, partPose?: PartPose) {
+        part.partPose = partPose;
         this.children[name] = part;
+    }
+
+    addBox(box: Box) {
+
     }
 }
 
@@ -98,7 +103,7 @@ class OldModelRenderer {
     public mirror: boolean = false;
     private rotationPoint: Vector = new Vector(0,0,0);
     private rotationAngle: Vector = new Vector(0,0,0);
-    private boxes: OldBox[] = [];
+    private boxes: Box[] = [];
     private children: OldModelRenderer[] = [];
 
     public texOffset: Pos = {
@@ -130,7 +135,7 @@ class OldModelRenderer {
     addChild(child: OldModelRenderer) {
         this.children.push(child);
     }
-    addBox(child: OldBox) {
+    addBox(child: Box) {
         this.boxes.push(child);
     }
     getBoxes() {
@@ -144,7 +149,7 @@ class OldModelRenderer {
 /**
  * Might want to add the mirrored or flipped if needed
  */
-class OldBox {
+class Box {
     public offset: Vector;
     public size: Vector;
 
@@ -158,7 +163,7 @@ class OldBox {
  * This will be the root node
  */
 class Model {
-    public children: PartDefinition[] = [];
+    public children: PartDefinitionBuilder[] = [];
 }
 
 
@@ -187,7 +192,7 @@ function loopOverAllMatches(regex: RegExp, contents: string, callback: (match: R
 }
 
 type OldParts = {[key: string]: OldModelRenderer};
-type NewParts = {[key: string]: PartDefinition};
+type NewParts = {[key: string]: PartDefinitionBuilder};
 
 function parseAllOldParts(fileContents: string): OldParts {
 
@@ -220,7 +225,7 @@ function parseAllOldParts(fileContents: string): OldParts {
         const size = boxDefinition.slice(5,8).map((value) => {
             return parseInt(value);
         });
-        unorganisedParts[name].addBox(new OldBox(new Vector(offset[0], offset[1], offset[2]), new Vector(size[0], size[1], size[2])));
+        unorganisedParts[name].addBox(new Box(new Vector(offset[0], offset[1], offset[2]), new Vector(size[0], size[1], size[2])));
     });
 
     loopOverAllMatches(getRotationPointDefinitions, fileContents, (modelDefinition) => {
@@ -270,18 +275,21 @@ function convertContents(fileContents: string) {
     // TODO template once converted
 }
 
-function convertModelRenderer(oldPart: OldModelRenderer, rename?: string) {
-    const newPart = new PartDefinition();
+function convertModelRenderer(oldPart: OldModelRenderer, rename?: string): PartDefinitionBuilder {
+    const newPart = new PartDefinitionBuilder();
 
     for(const box of oldPart.getBoxes()) {
         // TODO generate cube definiitons
+        newPart.addBox(box);
     }
 
-    for(const box of oldPart.getChildren()) {
-        // TODO generate child part definitions
+    for(const part of oldPart.getChildren()) {
+        newPart.addOrReplaceChild(part.name, convertModelRenderer(part))
     }
 
     console.log(oldPart, rename);
+
+    return newPart;
 }
 
 function convertOldPart(oldDefinitions: OldParts, name: string) {

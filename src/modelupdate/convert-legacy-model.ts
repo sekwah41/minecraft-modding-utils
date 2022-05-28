@@ -3,12 +3,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const getModelDefinitions = /this.([A-Za-z0-9]+)\s*=\s*new\sModelRenderer\(this,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
-const getRotationPointDefinitions = /this.([A-Za-z0-9]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
-const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
-const getMirrorDefinitions = /this.([A-Za-z0-9]+).mirror\s*=\s*\s*(true|false)\s*;/g;
-const addBoxDefinitions = /this.([A-Za-z0-9]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
-const addChildDefinitions = /this.([A-Za-z0-9]+).addChild\(\s*this.([A-Za-z0-9]+)\s*\);/g;
+const getModelDefinitions = /this.([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\(this,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
+const getRotationPointDefinitions = /this.([A-Za-z0-9_]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
+const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9_]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
+const getMirrorDefinitions = /this.([A-Za-z0-9_]+).mirror\s*=\s*\s*(true|false)\s*;/g;
+const addBoxDefinitions = /this.([A-Za-z0-9_]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
+const addChildDefinitions = /this.([A-Za-z0-9_]+).addChild\(\s*this.([A-Za-z0-9_]+)\s*\);/g;
 const textureWidth = /this.textureWidth\s*=\s*([0-9]+)\s*;/g;
 const textureHeight = /this.textureHeight\s*=\s*([0-9]+)\s*;/g;
 
@@ -265,7 +265,7 @@ function convertContents(fileContents: string) {
         }
     }
 
-    //console.log(baseBipedModel);
+    // console.log(baseBipedModel);
 
     // TODO template once converted
 }

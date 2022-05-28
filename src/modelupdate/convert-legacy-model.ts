@@ -2,6 +2,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import {modelTemplate} from "./template-model";
 
 const getModelDefinitions = /this.([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\(this,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
 const getRotationPointDefinitions = /this.([A-Za-z0-9_]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
@@ -55,12 +56,20 @@ class Vector {
         this.y = y;
         this.z = z;
     }
+
+    isZero() {
+        return this.x === 0 && this.y === 0 && this.z === 0;
+    }
 }
 
 class CubeBuilderDefinition {
     public mirror: boolean = false;
     public texCoord: Pos = new Pos();
     public boxes: Box[] = [];
+
+    addBox(box: Box) {
+        this.boxes.push(box);
+    }
 }
 
 /**
@@ -70,13 +79,14 @@ class PartPose {
     public pos: Vector;
     public rot: Vector;
 
-    constructor(x: number, y: number, z: number, xRot: number, yRot: number, zRot: number) {
-        this.pos = new Vector(x, y, z)
-        this.rot = new Vector(xRot, yRot, zRot)
+    constructor(pos: Vector, rot: Vector) {
+        this.pos = pos;
+        this.rot = rot;
     }
 }
 
-const PoseZeroOffset = new PartPose(0,0,0,0,0,0);
+// Might not be needed, might be able to just check if undefined
+const PoseZeroOffset = new PartPose(new Vector(0,0,0), new Vector(0,0,0));
 
 /**
  * Not a one to one copy of the file in mc, though is used to construct the lines that will create the templates
@@ -90,10 +100,6 @@ class PartDefinitionBuilder {
     addOrReplaceChild(name: string, part: PartDefinitionBuilder, partPose?: PartPose) {
         part.partPose = partPose;
         this.children[name] = part;
-    }
-
-    addBox(box: Box) {
-
     }
 }
 
@@ -124,13 +130,13 @@ class OldModelRenderer {
         this.rotationPoint = new Vector(x, y, z)
     }
     getRotationPoint() {
-        this.rotationPoint;
+        return this.rotationPoint;
     }
     setRotateAngle(x: number, y: number, z: number) {
         this.rotationAngle = new Vector(x, y, z)
     }
     getRotateAngle() {
-        this.rotationAngle;
+        return this.rotationAngle;
     }
     addChild(child: OldModelRenderer) {
         this.children.push(child);
@@ -192,7 +198,7 @@ function loopOverAllMatches(regex: RegExp, contents: string, callback: (match: R
 }
 
 type OldParts = {[key: string]: OldModelRenderer};
-type NewParts = {[key: string]: PartDefinitionBuilder};
+export type NewParts = {[key: string]: PartDefinitionBuilder};
 
 function parseAllOldParts(fileContents: string): OldParts {
 
@@ -255,7 +261,7 @@ function parseAllOldParts(fileContents: string): OldParts {
  * The main bulk of the logic
  * @param fileContents the raw java file to pull info from
  */
-function convertContents(fileContents: string) {
+function convertContents(fileContents: string, modelName: string) {
 
     const allOldParts = parseAllOldParts(fileContents);
 
@@ -270,24 +276,30 @@ function convertContents(fileContents: string) {
         }
     }
 
-    // console.log(baseBipedModel);
-
-    // TODO template once converted
+    console.log(modelTemplate({
+        fileName: modelName,
+        baseParts: baseBipedModel,
+    }));
 }
 
 function convertModelRenderer(oldPart: OldModelRenderer, rename?: string): PartDefinitionBuilder {
     const newPart = new PartDefinitionBuilder();
 
+    newPart.name = oldPart.name;
+    newPart.cubeBuilder.mirror = oldPart.mirror;
+    newPart.cubeBuilder.texCoord = oldPart.texOffset;
+
+    if(!oldPart.getRotationPoint().isZero() || !oldPart.getRotateAngle().isZero()) {
+        newPart.partPose = new PartPose(oldPart.getRotationPoint(), oldPart.getRotateAngle());
+    }
+
     for(const box of oldPart.getBoxes()) {
-        // TODO generate cube definiitons
-        newPart.addBox(box);
+        newPart.cubeBuilder.addBox(box);
     }
 
     for(const part of oldPart.getChildren()) {
         newPart.addOrReplaceChild(part.name, convertModelRenderer(part))
     }
-
-    console.log(oldPart, rename);
 
     return newPart;
 }
@@ -314,8 +326,9 @@ export function runConvertModel(...args: string[]) {
     }
     for(let fileLocation of args) {
         const fileContents = fs.readFileSync(fileLocation).toString();
-        convertContents(fileContents);
-        const newFileName = `${path.parse(fileLocation).name.replace("Model", "")}Model.java`;
+        const modelName = `${path.parse(fileLocation).name.replace("Model", "")}Model`;
+        convertContents(fileContents, modelName);
+        const newFileName = `${modelName}.java`;
         console.log({
             fileName: newFileName
         });

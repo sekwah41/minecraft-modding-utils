@@ -1,6 +1,7 @@
+import {NewParts} from "./convert-legacy-model";
 
 
-export function modelTemplate(props: {fileName: string, baseParts: string[]}) : string {
+export function modelTemplate(props: {fileName: string, baseParts: NewParts}) : string {
 
     return `
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -23,7 +24,7 @@ public class ${props.fileName}<T extends LivingEntity> extends HumanoidModel<T>
         MeshDefinition definition = new MeshDefinition();
         PartDefinition root = definition.getRoot();
         
-        ${grabFromRoot(...props.baseParts)}
+        ${generateModelCode(props.baseParts)}
     }
 
     // May need to implement the rendering parts depending on what you are doing
@@ -32,10 +33,13 @@ public class ${props.fileName}<T extends LivingEntity> extends HumanoidModel<T>
 }
 
 
-function grabFromRoot(...parts: string[]): string {
+function generateModelCode(parts: NewParts): string {
     let value = "";
 
-    for (const part of parts) {
+    for (const partName in parts) {
+        const part = parts[partName];
+        console.log(part);
+
         value += `
         PartDefinition ${part} = root.addOrReplaceChild("${part}",
                 CubeListBuilder.create()

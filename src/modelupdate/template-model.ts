@@ -1,4 +1,4 @@
-import {NewParts} from "./convert-legacy-model";
+import {NewParts, PartDefinitionBuilder} from "./convert-legacy-model";
 
 
 export function modelTemplate(props: {fileName: string, baseParts: NewParts}) : string {
@@ -32,6 +32,21 @@ public class ${props.fileName}<T extends LivingEntity> extends HumanoidModel<T>
 `;
 }
 
+function generateDefinitionsForPart(part: PartDefinitionBuilder): string {
+    const entries = Object.keys(part.children);
+    const hasChildren = entries.length > 0;
+    const childContents = hasChildren ? entries
+        .map(key => part.children[key])
+        .map(child => {
+            return generateDefinitionsForPart(child);
+        }).reduce((a,b) => {
+            return a + b;
+    }) : "";
+
+    return `
+        Hello ${part.name}
+    ${childContents}`;
+}
 
 function generateModelCode(parts: NewParts): string {
     let value = "";
@@ -40,11 +55,12 @@ function generateModelCode(parts: NewParts): string {
         const part = parts[partName];
         console.log(part);
 
-        value += `
-        PartDefinition ${part} = root.addOrReplaceChild("${part}",
-                CubeListBuilder.create()
-                , PartPose.ZERO);
-`;
+        value += generateDefinitionsForPart(part);
+        // value += `
+        // PartDefinition ${part} = root.addOrReplaceChild("${part}",
+        //         CubeListBuilder.create()
+        //         , PartPose.ZERO);
+//`;
     }
 
     return value;

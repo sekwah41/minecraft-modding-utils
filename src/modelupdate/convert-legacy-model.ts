@@ -91,7 +91,7 @@ const PoseZeroOffset = new PartPose(new Vector(0,0,0), new Vector(0,0,0));
 /**
  * Not a one to one copy of the file in mc, though is used to construct the lines that will create the templates
  */
-class PartDefinitionBuilder {
+export class PartDefinitionBuilder {
     public name: string | undefined;
     public cubeBuilder: CubeBuilderDefinition = new CubeBuilderDefinition();
     public children: {[key: string]: PartDefinitionBuilder} = {};

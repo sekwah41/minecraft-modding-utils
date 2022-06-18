@@ -10,8 +10,8 @@ const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9_]+)\s*,
 const getMirrorDefinitions = /this.([A-Za-z0-9_]+).mirror\s*=\s*\s*(true|false)\s*;/g;
 const addBoxDefinitions = /this.([A-Za-z0-9_]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
 const addChildDefinitions = /this.([A-Za-z0-9_]+).addChild\(\s*this.([A-Za-z0-9_]+)\s*\);/g;
-const textureWidth = /this.textureWidth\s*=\s*([0-9]+)\s*;/g;
-const textureHeight = /this.textureHeight\s*=\s*([0-9]+)\s*;/g;
+const textureWidthDefinition = /this.textureWidth\s*=\s*([0-9]+)\s*;/g;
+const textureHeightDefinition = /this.textureHeight\s*=\s*([0-9]+)\s*;/g;
 
 const baseModelNames = [
     "head",
@@ -35,7 +35,7 @@ const remapNames: {[key: string]: string} = {
     "upper_right_leg" : "upper_right_leg"
 }
 
-class Pos {
+export class Pos {
     x: number = 0;
     y: number = 0;
 
@@ -44,9 +44,13 @@ class Pos {
         this.y = y;
     }
 
+    equals(pos: Pos): boolean {
+        return pos.x === this.x && pos.y === this.y;
+    }
+
 }
 
-class Vector {
+export class Vector {
     x: number = 0;
     y: number = 0;
     z: number = 0;
@@ -62,7 +66,7 @@ class Vector {
     }
 }
 
-class CubeBuilderDefinition {
+export class CubeBuilderDefinition {
     public mirror: boolean = false;
     public texCoord: Pos = new Pos();
     public boxes: Box[] = [];
@@ -75,13 +79,17 @@ class CubeBuilderDefinition {
 /**
  * Remember there are calls that do both or just offset or rotation.
  */
-class PartPose {
+export class PartPose {
     public pos: Vector;
     public rot: Vector;
 
     constructor(pos: Vector, rot: Vector) {
         this.pos = pos;
         this.rot = rot;
+    }
+
+    isZero() {
+        return this.pos.isZero() && this.rot.isZero();
     }
 }
 
@@ -92,12 +100,16 @@ const PoseZeroOffset = new PartPose(new Vector(0,0,0), new Vector(0,0,0));
  * Not a one to one copy of the file in mc, though is used to construct the lines that will create the templates
  */
 export class PartDefinitionBuilder {
-    public name: string | undefined;
+    public name: string;
     public cubeBuilder: CubeBuilderDefinition = new CubeBuilderDefinition();
     public children: {[key: string]: PartDefinitionBuilder} = {};
-    public partPose: PartPose | undefined;
+    public partPose: PartPose = PoseZeroOffset;
 
-    addOrReplaceChild(name: string, part: PartDefinitionBuilder, partPose?: PartPose) {
+    constructor(name: string) {
+        this.name = name;
+    }
+
+    addOrReplaceChild(name: string, part: PartDefinitionBuilder, partPose: PartPose = PoseZeroOffset) {
         part.partPose = partPose;
         this.children[name] = part;
     }
@@ -112,10 +124,7 @@ class OldModelRenderer {
     private boxes: Box[] = [];
     private children: OldModelRenderer[] = [];
 
-    public texOffset: Pos = {
-        x: 0,
-        y: 0,
-    };
+    public texOffset: Pos = new Pos(0, 0);
 
     constructor({name, texOffset}: {
         name: string,
@@ -276,16 +285,28 @@ function convertContents(fileContents: string, modelName: string) {
         }
     }
 
+    let textureWidth = 64;
+    let textureHeight = 64;
+
+    loopOverAllMatches(textureWidthDefinition, fileContents, (textureInfo) => {
+        textureWidth = parseFloat(textureInfo[1]);
+    });
+
+    loopOverAllMatches(textureHeightDefinition, fileContents, (textureInfo) => {
+        textureHeight = parseFloat(textureInfo[1]);
+    });
+
     console.log(modelTemplate({
         fileName: modelName,
         baseParts: baseBipedModel,
+        textureWidth,
+        textureHeight,
     }));
 }
 
 function convertModelRenderer(oldPart: OldModelRenderer, rename?: string): PartDefinitionBuilder {
-    const newPart = new PartDefinitionBuilder();
+    const newPart = new PartDefinitionBuilder(oldPart.name);
 
-    newPart.name = oldPart.name;
     newPart.cubeBuilder.mirror = oldPart.mirror;
     newPart.cubeBuilder.texCoord = oldPart.texOffset;
 
@@ -312,7 +333,7 @@ function convertOldPart(oldDefinitions: OldParts, name: string) {
     }
 
     if(!oldPart) {
-        return null;
+        return new PartDefinitionBuilder(name);
     }
 
     return convertModelRenderer(oldPart, name);

@@ -32,7 +32,7 @@ const remapNames: {[key: string]: string} = {
     "left_arm" : "upper_left_arm",
     "right_arm" : "upper_right_arm",
     "left_leg" : "upper_left_leg",
-    "upper_body" : "body",
+    "body" : "upper_body",
     "upper_right_leg" : "upper_right_leg"
 }
 
@@ -270,8 +270,9 @@ function parseAllOldParts(fileContents: string): OldParts {
 /**
  * The main bulk of the logic
  * @param fileContents the raw java file to pull info from
+ * @param modelName the new model name
  */
-function convertContents(fileContents: string, modelName: string) {
+function convertContents(fileContents: string, modelName: string): string {
 
     const allOldParts = parseAllOldParts(fileContents);
 
@@ -297,16 +298,16 @@ function convertContents(fileContents: string, modelName: string) {
         textureHeight = parseFloat(textureInfo[1]);
     });
 
-    console.log(modelTemplate({
+    return modelTemplate({
         fileName: modelName,
         baseParts: baseBipedModel,
         textureWidth,
         textureHeight,
-    }));
+    });
 }
 
 function convertModelRenderer(oldPart: OldModelRenderer, rename?: string): PartDefinitionBuilder {
-    const newPart = new PartDefinitionBuilder(oldPart.name);
+    const newPart = new PartDefinitionBuilder(rename || oldPart.name);
 
     newPart.cubeBuilder.mirror = oldPart.mirror;
     newPart.cubeBuilder.texCoord = oldPart.texOffset;
@@ -328,10 +329,7 @@ function convertModelRenderer(oldPart: OldModelRenderer, rename?: string): PartD
 
 function convertOldPart(oldDefinitions: OldParts, name: string) {
 
-    let oldPart = oldDefinitions[name];
-    if(!oldPart) {
-        oldPart = oldDefinitions[remapNames[name]];
-    }
+    let oldPart = oldDefinitions[name] || oldDefinitions[remapNames[name]];
 
     if(!oldPart) {
         return new PartDefinitionBuilder(name);
@@ -349,8 +347,8 @@ export function runConvertModel(...args: string[]) {
     for(let fileLocation of args) {
         const fileContents = fs.readFileSync(fileLocation).toString();
         const modelName = `${path.parse(fileLocation).name.replace("Model", "")}Model`;
-        convertContents(fileContents, modelName);
         const newFileName = `${modelName}.java`;
+        fs.writeFileSync(path.join(path.dirname(fileLocation), newFileName), convertContents(fileContents, modelName));
         console.log({
             fileName: newFileName
         });

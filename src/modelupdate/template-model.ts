@@ -86,14 +86,8 @@ function generateModelCode(parts: NewParts): string {
             console.log("No parts or children found for", part.name);
             continue;
         }
-        //console.log(part);
 
         value += generateDefinitionsForPart(part);
-        // value += `
-        // PartDefinition ${part} = root.addOrReplaceChild("${part}",
-        //         CubeListBuilder.create()
-        //         , PartPose.ZERO);
-//`;
     }
 
     return `${value}`;

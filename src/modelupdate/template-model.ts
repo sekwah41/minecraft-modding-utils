@@ -4,24 +4,27 @@ import {CubeBuilderDefinition, NewParts, PartDefinitionBuilder, PartPose, Pos} f
 export function modelTemplate(props: {fileName: string, baseParts: NewParts, textureWidth: number, textureHeight: number}) : string {
 
     return `
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.sekwah.narutomod.NarutoMod;
+import com.sekwah.sekclib.util.ModelUtils;
 import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.*;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 
 public class ${props.fileName}<T extends LivingEntity> extends HumanoidModel<T>
 {
+    
+    // public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(mod resource location, "main");
+
+    public ${props.fileName}(ModelPart modelPart) {
+        super(modelPart);
+    }
 
     // Grab the parts in the constructor if you need them
     
     public static LayerDefinition createLayer() {
-        MeshDefinition definition = new MeshDefinition();
+        //MeshDefinition definition = new MeshDefinition();
+        MeshDefinition definition = ModelUtils.createBlankHumanoidMesh();
         PartDefinition root = definition.getRoot();${generateModelCode(props.baseParts)}
         
         return LayerDefinition.create(definition, ${jn(props.textureWidth)}, ${jn(props.textureHeight)});
@@ -48,7 +51,7 @@ function generateCubeBuilder(cubes: CubeBuilderDefinition): string {
 
 function generatePartPose(partPose: PartPose): string {
     // check if the texture position has moved
-    return partPose.isZero() ? "PartPose.Zero" : `PartPose.offsetAndRotation(${jn(partPose.pos.x)}, ${jn(partPose.pos.y)}, ${jn(partPose.pos.z)}, ${jn(partPose.rot.x)}, ${jn(partPose.rot.y)}, ${jn(partPose.rot.z)})`;
+    return partPose.isZero() ? "PartPose.ZERO" : `PartPose.offsetAndRotation(${jn(partPose.pos.x)}, ${jn(partPose.pos.y)}, ${jn(partPose.pos.z)}, ${jn(partPose.rot.x)}, ${jn(partPose.rot.y)}, ${jn(partPose.rot.z)})`;
 }
 
 /**

@@ -32,6 +32,7 @@ const remapNames: {[key: string]: string} = {
     "left_arm" : "upper_left_arm",
     "right_arm" : "upper_right_arm",
     "left_leg" : "upper_left_leg",
+    "upper_body" : "body",
     "upper_right_leg" : "upper_right_leg"
 }
 

@@ -110,8 +110,7 @@ export class PartDefinitionBuilder {
         this.name = name;
     }
 
-    addOrReplaceChild(name: string, part: PartDefinitionBuilder, partPose: PartPose = PoseZeroOffset) {
-        part.partPose = partPose;
+    addOrReplaceChild(name: string, part: PartDefinitionBuilder) {
         this.children[name] = part;
     }
 }

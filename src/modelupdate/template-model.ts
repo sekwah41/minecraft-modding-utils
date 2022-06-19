@@ -75,7 +75,7 @@ function generateDefinitionsForPart(part: PartDefinitionBuilder, parentName?: st
 
     return `
         
-        PartDefinition ${part.name} = ${parentName || "root"}.addOrReplaceChild("${part.name}",
+        ${hasChildren ? `PartDefinition ${part.name} = ` : ""}${parentName || "root"}.addOrReplaceChild("${part.name}",
             ${generateCubeBuilder(part.cubeBuilder)},
             ${generatePartPose(part.partPose)});${childContents}`;
 }

@@ -5,7 +5,7 @@ import * as path from 'path';
 import {modelTemplate} from "./template-model";
 import glob from 'glob';
 
-const getModelDefinitions = /this.([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\(this,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
+const getModelDefinitions = /this.([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\(\s*this\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
 const getRotationPointDefinitions = /this.([A-Za-z0-9_]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
 const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9_]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
 const getMirrorDefinitions = /this.([A-Za-z0-9_]+).mirror\s*=\s*\s*(true|false)\s*;/g;
@@ -230,6 +230,9 @@ function parseAllOldParts(fileContents: string): OldParts {
         const angles = modelDefinition.slice(2,5).map((value) => {
             return parseFloat(value.replace("F",""));
         });
+        if(!unorganisedParts[name]) {
+            throw Error(`Could not find part named: ${name}`);
+        }
         unorganisedParts[name].setRotateAngle(angles[0], angles[1], angles[2]);
     });
 
@@ -241,6 +244,9 @@ function parseAllOldParts(fileContents: string): OldParts {
         const size = boxDefinition.slice(5,8).map((value) => {
             return parseInt(value);
         });
+        if(!unorganisedParts[name]) {
+            throw Error(`Could not find part named: ${name}`);
+        }
         unorganisedParts[name].addBox(new Box(new Vector(offset[0], offset[1], offset[2]), new Vector(size[0], size[1], size[2])));
     });
 
@@ -249,17 +255,26 @@ function parseAllOldParts(fileContents: string): OldParts {
         const angles = modelDefinition.slice(2,5).map((value) => {
             return parseFloat(value.replace("F",""));
         });
+        if(!unorganisedParts[name]) {
+            throw Error(`Could not find part named: ${name}`);
+        }
         unorganisedParts[name].setRotationPoint(angles[0], angles[1], angles[2]);
     });
 
     loopOverAllMatches(getMirrorDefinitions, fileContents, (mirrorDefinitions) => {
         const name = convertToPascalCase(mirrorDefinitions[1]);
+        if(!unorganisedParts[name]) {
+            throw Error(`Could not find part named: ${name}`);
+        }
         unorganisedParts[name].mirror = mirrorDefinitions[2] == "true";
     });
 
     loopOverAllMatches(addChildDefinitions, fileContents, (childDefinitions) => {
         const name = convertToPascalCase(childDefinitions[1]);
         const child = convertToPascalCase(childDefinitions[2]);
+        if(!unorganisedParts[name]) {
+            throw Error(`Could not find part named: ${name}`);
+        }
         unorganisedParts[name].addChild(unorganisedParts[child]);
 
     });

@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {modelTemplate} from "./template-model";
+import glob from 'glob';
 
 const getModelDefinitions = /this.([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\(this,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
 const getRotationPointDefinitions = /this.([A-Za-z0-9_]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
@@ -343,14 +344,31 @@ export function runConvertModel(...args: string[]) {
         console.log("No arguments provided")
         process.exit(-1);
     }
+
     for(let fileLocation of args) {
-        const fileContents = fs.readFileSync(fileLocation).toString();
-        const modelName = `${path.parse(fileLocation).name.replace("Model", "")}Model`;
-        const newFileName = `${modelName}.java`;
-        fs.writeFileSync(path.join(path.dirname(fileLocation), newFileName), convertContents(fileContents, modelName));
-        console.log({
-            fileName: newFileName
-        });
+
+        try {
+            const files = glob.sync(fileLocation);
+
+            for(let file of files) {
+                try {
+                    console.log("\n\nConverting", file);
+                    const fileContents = fs.readFileSync(file).toString();
+                    const modelName = `${path.parse(file).name.replace("Model", "")}Model`;
+                    const newFileName = `${modelName}.java`;
+                    fs.writeFileSync(path.join(path.dirname(file), newFileName), convertContents(fileContents, modelName));
+                    console.log("Created model conversion", newFileName);
+                } catch(e) {
+                    console.error("Problem converting", file, e);
+                }
+
+            }
+
+
+        } catch(e) {
+            console.error("Error finding files", e)
+        }
+
     }
     return 0;
 }

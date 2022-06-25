@@ -10,7 +10,7 @@ const getModelDefinitions = /(?:this.)?([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\
 const getRotationPointDefinitions = /(?:this.)?([A-Za-z0-9_]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
 const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9_]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
 const getMirrorDefinitions = /(?:this.)?([A-Za-z0-9_]+).mirror\s*=\s*\s*(true|false)\s*;/g;
-const addBoxDefinitions = /(?:this.)?([A-Za-z0-9_]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
+const addBoxDefinitions = /(?:this.)?([A-Za-z0-9_]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*(,\s*([0-9.F]+)\s*)?\);/g;
 const addChildDefinitions = /(?:this.)?([A-Za-z0-9_]+).addChild\(\s*(?:this.)?([A-Za-z0-9_]+)\s*\);/g;
 const textureWidthDefinition = /(?:this.)?textureWidth\s*=\s*([0-9]+)\s*;/g;
 const textureHeightDefinition = /(?:this.)?textureHeight\s*=\s*([0-9]+)\s*;/g;
@@ -28,14 +28,16 @@ const textureHeightDefinition = /(?:this.)?textureHeight\s*=\s*([0-9]+)\s*;/g;
 /**
  * This is for converting old naruto mod models. The lower arm will likely be re-made but will use new naming and logic
  *
+ * Some are just replacements for things on mine. Modify this for your own!
+ *
  * These will also create a blank mesh definition.
  */
-const remapNames: {[key: string]: string} = {
-    "left_arm" : "upper_left_arm",
-    "right_arm" : "upper_right_arm",
-    "left_leg" : "upper_left_leg",
-    "body" : "upper_body",
-    "right_leg" : "upper_right_leg"
+const remapNames: {[key: string]: string []} = {
+    "left_arm" : ["upper_left_arm", "arm_lock_left"],
+    "right_arm" : ["upper_right_arm", "arm_lock_right"],
+    "left_leg" : ["upper_left_leg"],
+    "body" : ["upper_body", "body_lock"],
+    "right_leg" : ["upper_right_leg"]
 }
 
 export class Pos {
@@ -258,6 +260,7 @@ function parseAllOldParts(fileContents: string, ignoreMissingParts: boolean): Ol
         const offset = boxDefinition.slice(2,5).map((value) => {
             return parseFloat(value.replace("F",""));
         });
+        // TODO need to posibly pay attention to the final option value
         const size = boxDefinition.slice(5,8).map((value) => {
             return parseInt(value);
         });
@@ -386,7 +389,12 @@ function convertModelRenderer(oldPart: OldModelRenderer, rename?: string): PartD
 
 function convertOldPart(oldDefinitions: OldParts, name: string) {
 
-    let oldPart = oldDefinitions[name] || oldDefinitions[remapNames[name]];
+    let oldPart = oldDefinitions[name];
+
+    if(oldPart) {
+        const foundName = remapNames[name]?.find(value => oldDefinitions[value]);
+        if(foundName) oldPart = oldDefinitions[foundName];
+    }
 
     if(!oldPart) {
         return new PartDefinitionBuilder(name);

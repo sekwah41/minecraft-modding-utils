@@ -4,17 +4,21 @@ import {CubeBuilderDefinition, NewParts, PartDefinitionBuilder, PartPose, Pos} f
 export function modelTemplate(props: {fileName: string, baseParts: NewParts, textureWidth: number, textureHeight: number}) : string {
 
     return `
+package setme;
+
 import com.sekwah.sekclib.util.ModelUtils;
 import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.*;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.resources.ResourceLocation;
 
 public class ${props.fileName}<T extends LivingEntity> extends HumanoidModel<T>
 {
     
-    // public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(mod resource location, "main");
+    // public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation(MODID, "changeme"), "main");
 
     public ${props.fileName}(ModelPart modelPart) {
         super(modelPart);

@@ -32,12 +32,25 @@ const textureHeightDefinition = /(?:this.)?textureHeight\s*=\s*([0-9]+)\s*;/g;
  *
  * These will also create a blank mesh definition.
  */
-const remapNames: {[key: string]: string []} = {
-    "left_arm" : ["upper_left_arm", "arm_lock_left"],
-    "right_arm" : ["upper_right_arm", "arm_lock_right"],
-    "left_leg" : ["upper_left_leg"],
-    "body" : ["upper_body", "body_lock"],
-    "right_leg" : ["upper_right_leg"]
+const remapNames: {[key: string]: string} = {
+    "upper_left_arm": "left_arm",
+    "arm_lock_left": "left_arm",
+    "upper_right_arm": "right_arm",
+    "arm_lock_right": "right_arm",
+    "upper_left_leg": "left_leg",
+    "upper_body": "body",
+    "body_lock": "body",
+    "upper_right_leg": "right_leg",
+}
+
+
+function remapName(name : string) {
+    const remapped = remapNames[name];
+    if(remapped) {
+        console.log("Remap", name, "to", remapped);
+        return remapped;
+    }
+    return name;
 }
 
 export class Pos {
@@ -111,7 +124,7 @@ export class PartDefinitionBuilder {
     public partPose: PartPose = PoseZeroOffset;
 
     constructor(name: string) {
-        this.name = name;
+        this.name = remapName(name);
     }
 
     addOrReplaceChild(name: string, part: PartDefinitionBuilder) {
@@ -390,11 +403,6 @@ function convertModelRenderer(oldPart: OldModelRenderer, rename?: string): PartD
 function convertOldPart(oldDefinitions: OldParts, name: string) {
 
     let oldPart = oldDefinitions[name];
-
-    if(oldPart) {
-        const foundName = remapNames[name]?.find(value => oldDefinitions[value]);
-        if(foundName) oldPart = oldDefinitions[foundName];
-    }
 
     if(!oldPart) {
         return new PartDefinitionBuilder(name);

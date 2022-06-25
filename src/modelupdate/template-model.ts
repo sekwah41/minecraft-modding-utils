@@ -3,8 +3,7 @@ import {CubeBuilderDefinition, NewParts, PartDefinitionBuilder, PartPose, Pos} f
 
 export function modelTemplate(props: {fileName: string, baseParts: NewParts, textureWidth: number, textureHeight: number}) : string {
 
-    return `
-package setme;
+    return `package setme;
 
 import com.sekwah.sekclib.util.ModelUtils;
 import net.minecraft.client.model.HumanoidModel;

@@ -34,7 +34,7 @@ const remapNames: {[key: string]: string} = {
     "right_arm" : "upper_right_arm",
     "left_leg" : "upper_left_leg",
     "body" : "upper_body",
-    "upper_right_leg" : "upper_right_leg"
+    "right_leg" : "upper_right_leg"
 }
 
 export class Pos {
@@ -197,6 +197,7 @@ class NewModelFile {
 }
 
 function loopOverAllMatches(regex: RegExp, contents: string, callback: (match: RegExpExecArray) => void) {
+    regex.lastIndex = 0;
     let regexMatch;
     do {
         regexMatch = regex.exec(contents);
@@ -299,6 +300,8 @@ function convertContents(fileContents: string, modelName: string): string {
         const newPart = convertOldPart(allOldParts, part);
         if(newPart) {
             baseBipedModel[part] = newPart;
+        } else {
+            console.log("No part found for", newPart);
         }
     }
 
@@ -355,36 +358,34 @@ function convertOldPart(oldDefinitions: OldParts, name: string) {
 
 
 export function runConvertModel(...args: string[]) {
-    if(args.length === 0) {
-        console.log("No arguments provided")
+    if(args.length < 2) {
+        console.log("You must provide a target and output folder")
         process.exit(-1);
     }
 
-    for(let fileLocation of args) {
+    try {
+        const files = glob.sync(args[0]);
 
-        try {
-            const files = glob.sync(fileLocation);
-
-            for(let file of files) {
-                try {
-                    console.log("\n\nConverting", file);
-                    const fileContents = fs.readFileSync(file).toString();
-                    const modelName = `${path.parse(file).name.replace("Model", "")}Model`;
-                    const newFileName = `${modelName}.java`;
-                    fs.writeFileSync(path.join(path.dirname(file), newFileName), convertContents(fileContents, modelName));
-                    console.log("Created model conversion", newFileName);
-                } catch(e) {
-                    console.error("Problem converting", file, e);
-                }
-
+        for(let file of files) {
+            try {
+                console.log("\n\nConverting", file);
+                const fileContents = fs.readFileSync(file).toString();
+                const modelName = `${path.parse(file).name.replace("Model", "")}Model`;
+                const newFileName = `${modelName}.java`;
+                fs.writeFileSync(path.join(args[1], newFileName), convertContents(fileContents, modelName));
+                console.log("Created model conversion", newFileName);
+            } catch(e) {
+                console.error("Problem converting", file, e);
             }
 
-
-        } catch(e) {
-            console.error("Error finding files", e)
         }
 
+
+    } catch(e) {
+        console.error("Error finding files", e)
     }
+
+
     return 0;
 }
 

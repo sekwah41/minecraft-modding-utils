@@ -5,24 +5,25 @@ import * as path from 'path';
 import {modelTemplate} from "./template-model";
 import glob from 'glob';
 
-const getModelDefinitions = /this.([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\(\s*this\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
-const getRotationPointDefinitions = /this.([A-Za-z0-9_]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
+// You may need to remove the extra code outside of the constructor
+const getModelDefinitions = /(?:this.)?([A-Za-z0-9_]+)\s*=\s*new\sModelRenderer\(\s*this\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*\);/g;
+const getRotationPointDefinitions = /(?:this.)?([A-Za-z0-9_]+).setRotationPoint\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
 const getRotationAngleDefinitions = /this.setRotateAngle\(\s*([A-Za-z0-9_]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*\);/g;
-const getMirrorDefinitions = /this.([A-Za-z0-9_]+).mirror\s*=\s*\s*(true|false)\s*;/g;
-const addBoxDefinitions = /this.([A-Za-z0-9_]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
-const addChildDefinitions = /this.([A-Za-z0-9_]+).addChild\(\s*this.([A-Za-z0-9_]+)\s*\);/g;
-const textureWidthDefinition = /this.textureWidth\s*=\s*([0-9]+)\s*;/g;
-const textureHeightDefinition = /this.textureHeight\s*=\s*([0-9]+)\s*;/g;
+const getMirrorDefinitions = /(?:this.)?([A-Za-z0-9_]+).mirror\s*=\s*\s*(true|false)\s*;/g;
+const addBoxDefinitions = /(?:this.)?([A-Za-z0-9_]+).addBox\(\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*(-?[0-9.F]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9.F]+)\s*\);/g;
+const addChildDefinitions = /(?:this.)?([A-Za-z0-9_]+).addChild\(\s*(?:this.)?([A-Za-z0-9_]+)\s*\);/g;
+const textureWidthDefinition = /(?:this.)?textureWidth\s*=\s*([0-9]+)\s*;/g;
+const textureHeightDefinition = /(?:this.)?textureHeight\s*=\s*([0-9]+)\s*;/g;
 
-const baseModelNames = [
-    "head",
-    "hat",
-    "body",
-    "right_arm",
-    "left_arm",
-    "right_leg",
-    "left_leg"
-];
+// const baseModelNames = [
+//     "head",
+//     "hat",
+//     "body",
+//     "right_arm",
+//     "left_arm",
+//     "right_leg",
+//     "left_leg"
+// ];
 
 /**
  * This is for converting old naruto mod models. The lower arm will likely be re-made but will use new naming and logic
@@ -124,6 +125,7 @@ class OldModelRenderer {
     private rotationAngle: Vector = new Vector(0,0,0);
     private boxes: Box[] = [];
     private children: OldModelRenderer[] = [];
+    private hasParent = false;
 
     public texOffset: Pos = new Pos(0, 0);
 
@@ -134,6 +136,14 @@ class OldModelRenderer {
         this.name = name;
         this.texOffset = texOffset;
 
+    }
+
+    addedAsChild() {
+        this.hasParent = true;
+    }
+
+    isChild() {
+        return this.hasParent;
     }
 
     setRotationPoint(x: number, y: number, z: number) {
@@ -150,6 +160,7 @@ class OldModelRenderer {
     }
     addChild(child: OldModelRenderer) {
         this.children.push(child);
+        child.addedAsChild();
     }
     addBox(child: Box) {
         this.boxes.push(child);
@@ -211,7 +222,7 @@ function loopOverAllMatches(regex: RegExp, contents: string, callback: (match: R
 type OldParts = {[key: string]: OldModelRenderer};
 export type NewParts = {[key: string]: PartDefinitionBuilder};
 
-function parseAllOldParts(fileContents: string): OldParts {
+function parseAllOldParts(fileContents: string, ignoreMissingParts: boolean): OldParts {
 
     const unorganisedParts: OldParts = {
 
@@ -232,7 +243,12 @@ function parseAllOldParts(fileContents: string): OldParts {
             return parseFloat(value.replace("F",""));
         });
         if(!unorganisedParts[name]) {
-            throw Error(`Could not find part named: ${name}`);
+            if(ignoreMissingParts) {
+                console.error(`Could not find part named: ${name}`);
+                return;
+            } else {
+                throw Error(`Could not find part named: ${name}`);
+            }
         }
         unorganisedParts[name].setRotateAngle(angles[0], angles[1], angles[2]);
     });
@@ -246,7 +262,12 @@ function parseAllOldParts(fileContents: string): OldParts {
             return parseInt(value);
         });
         if(!unorganisedParts[name]) {
-            throw Error(`Could not find part named: ${name}`);
+            if(ignoreMissingParts) {
+                console.error(`Could not find part named: ${name}`);
+                return;
+            } else {
+                throw Error(`Could not find part named: ${name}`);
+            }
         }
         unorganisedParts[name].addBox(new Box(new Vector(offset[0], offset[1], offset[2]), new Vector(size[0], size[1], size[2])));
     });
@@ -257,7 +278,12 @@ function parseAllOldParts(fileContents: string): OldParts {
             return parseFloat(value.replace("F",""));
         });
         if(!unorganisedParts[name]) {
-            throw Error(`Could not find part named: ${name}`);
+            if(ignoreMissingParts) {
+                console.error(`Could not find part named: ${name}`);
+                return;
+            } else {
+                throw Error(`Could not find part named: ${name}`);
+            }
         }
         unorganisedParts[name].setRotationPoint(angles[0], angles[1], angles[2]);
     });
@@ -265,7 +291,12 @@ function parseAllOldParts(fileContents: string): OldParts {
     loopOverAllMatches(getMirrorDefinitions, fileContents, (mirrorDefinitions) => {
         const name = convertToPascalCase(mirrorDefinitions[1]);
         if(!unorganisedParts[name]) {
-            throw Error(`Could not find part named: ${name}`);
+            if(ignoreMissingParts) {
+                console.error(`Could not find part named: ${name}`);
+                return;
+            } else {
+                throw Error(`Could not find part named: ${name}`);
+            }
         }
         unorganisedParts[name].mirror = mirrorDefinitions[2] == "true";
     });
@@ -274,7 +305,12 @@ function parseAllOldParts(fileContents: string): OldParts {
         const name = convertToPascalCase(childDefinitions[1]);
         const child = convertToPascalCase(childDefinitions[2]);
         if(!unorganisedParts[name]) {
-            throw Error(`Could not find part named: ${name}`);
+            if(ignoreMissingParts) {
+                console.error(`Could not find part named: ${name}`);
+                return;
+            } else {
+                throw Error(`Could not find part named: ${name}`);
+            }
         }
         unorganisedParts[name].addChild(unorganisedParts[child]);
 
@@ -288,18 +324,21 @@ function parseAllOldParts(fileContents: string): OldParts {
  * @param fileContents the raw java file to pull info from
  * @param modelName the new model name
  */
-function convertContents(fileContents: string, modelName: string): string {
+function convertContents(fileContents: string, modelName: string, ignoreMissingParts = false): string {
 
-    const allOldParts = parseAllOldParts(fileContents);
+    const allOldParts = parseAllOldParts(fileContents, ignoreMissingParts);
 
     const baseBipedModel: NewParts = {
 
     }
 
-    for(const part of baseModelNames) {
-        const newPart = convertOldPart(allOldParts, part);
+    for(const partName in allOldParts) {
+        if(allOldParts[partName].isChild()) {
+            continue;
+        }
+        const newPart = convertOldPart(allOldParts, partName);
         if(newPart) {
-            baseBipedModel[part] = newPart;
+            baseBipedModel[partName] = newPart;
         } else {
             console.log("No part found for", newPart);
         }
@@ -363,6 +402,8 @@ export function runConvertModel(...args: string[]) {
         process.exit(-1);
     }
 
+    const ignoreMissingParts = !!args[2];
+
     try {
         const files = glob.sync(args[0]);
 
@@ -372,7 +413,7 @@ export function runConvertModel(...args: string[]) {
                 const fileContents = fs.readFileSync(file).toString();
                 const modelName = `${path.parse(file).name.replace("Model", "")}Model`;
                 const newFileName = `${modelName}.java`;
-                fs.writeFileSync(path.join(args[1], newFileName), convertContents(fileContents, modelName));
+                fs.writeFileSync(path.join(args[1], newFileName), convertContents(fileContents, modelName, ignoreMissingParts));
                 console.log("Created model conversion", newFileName);
             } catch(e) {
                 console.error("Problem converting", file, e);
